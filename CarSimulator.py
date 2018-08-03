@@ -1,20 +1,27 @@
 from coordinates import Coordinate
 from numpy.random import randn
 from uuid import uuid1
+from db_connector import get_mongo_client
 from pymongo import MongoClient
 import pymongo
 from datetime import datetime, timedelta
 import time
+from pprint import pprint
 from maps_api_key import key
 import googlemaps
 
 gmaps = googlemaps.Client(key=key)
+mongo_client = get_mongo_client()
+db = mongo_client.carChain
 
 def get_travel_information(origin, destination):
     directions_result = gmaps.directions(origin, destination, mode="driving", departure_time=datetime.now())
     distance_in_meters = directions_result[0]['legs'][0]['distance']['value']
-    duration_in_seconds = directions_result[0]['legs'][0]['duration']['value']
-    return distance_in_meters, duration_in_seconds
+    # duration_in_seconds = directions_result[0]['legs'][0]['duration']['value']
+    steps = directions_result[0]['legs'][0]['steps']
+    steps_filtered = [{'start_location':Coordinate(**i['start_location']),
+                       'end_location':Coordinate(**i['end_location'])} for i in steps]
+    return steps_filtered, distance_in_meters
 
 class CarSim:
 
@@ -27,43 +34,43 @@ class CarSim:
         self.traveled_distance = traveled_distance
         self.last_updated = datetime.now()
         self.id = uuid1()
-        self.location = self.set_current_location()
+        self.location = home_coord
 
     def run(self):
         while True:
             next_event = self.get_next_event()
             self.sleep_till_next_event(next_event)
-            distance, start, finish = self.travel(next_event)
+            trip = self.travel(next_event)
 
-            update = {
-                'duration' : {
-                    'start' : start,
-                    'stop' : finish
-                },
-                'distance' : distance,
-                'car_id' : self.id
+            geo_json_trip = [{'start_location':i['start_location'].get_geo_json(),
+                              'end_location':i['end_location'].get_geo_json()} for i in trip]
+
+            raw_data = {
+                'car_id' : self.id,
+                'insertion_time' : datetime.now(),
+                'trip' : geo_json_trip
             }
 
-            self.save(update)
+            self.save_in_db(raw_data)
             self.last_updated = datetime.now()
+            break
 
     def travel(self, next_event):
-        distance, duration = get_travel_information(self.location, next_event['location'])
-        start = datetime.now()
-        self.sleep_till_end_of_trip(duration)
-        finish = datetime.now()
+        trip, distance = get_travel_information(self.location.get_tuple(), next_event['location'].get_tuple())
         self.location = next_event['location']
         self.traveled_distance += distance
-        return distance, start, finish
+        return trip
 
-    def save(self, update):
-        pass
+    def get_odometer(self):
+        return self.traveled_distance
 
-    def set_current_location(self, location=None):
-        pass
+    def save_in_db(self, raw_data):
+        r = db.raw_sim_data.insert_one(raw_data)
+        if not r.acknowledged:
+            raise Exception('Error in MongoDB')
 
     def get_next_event(self):
-        pass
+        time_var = timedelta(minutes=randn()*10)
 
     def sleep_till_next_event(self, next_event):
         pass
