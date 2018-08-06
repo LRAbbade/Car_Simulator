@@ -1,4 +1,3 @@
-from decorator import decorator
 from coordinates import Coordinate
 from numpy.random import randn
 import random

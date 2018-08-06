@@ -1,0 +1,5 @@
+geopy==1.16.0
+googlemaps==3.0.2
+numpy==1.13.3
+numpydoc==0.7.0
+pymongo==3.6.0
