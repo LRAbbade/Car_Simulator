@@ -3,7 +3,7 @@ from geopy.distance import geodesic
 class Coordinate:
 
     @staticmethod
-    def distance(c1, c2):
+    def Distance(c1, c2):
         if isinstance(c1, Coordinate):
             c1 = c1.get_tuple()
         if isinstance(c2, Coordinate):
@@ -48,3 +48,6 @@ class Coordinate:
 
     def __repr__(self):
         return 'Coordinate object: ' + self.__str__()
+
+    def __eq__(self, c2):
+        return self.lat == c2.lat and self.lng == c2.lng
