@@ -116,7 +116,7 @@ class CarSim:
                 event_location = self.weekend_coord
             else:
                 print('$ Car number:', self.car_number, ' * currently at home')
-                if current_hour >= self.work_end:
+                if current_hour >= self.work_start:
                     print('$ Car number:', self.car_number, 'going to sleep')
                     today += timedelta(hours=(25 - current_hour))
 
