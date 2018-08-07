@@ -15,6 +15,12 @@ gmaps = googlemaps.Client(key=key)
 mongo_client = get_mongo_client()
 db = mongo_client.carChain
 
+def save_to_mongo(car_number, document):
+    print('$ Car number:', car_number, 'saving trip in mongo')
+    r = db.raw_sim_data.insert_one(raw_data)
+    if not r.acknowledged:
+        raise Exception('Error in MongoDB at car ' + str(car_number))
+
 def get_travel_information(origin, destination):
     directions_result = gmaps.directions(origin, destination, mode="driving", departure_time=datetime.now())
     distance_in_meters = directions_result[0]['legs'][0]['distance']['value']
@@ -50,6 +56,8 @@ class CarSim:
 
     def run(self):
         while True:
+            print('$ Car number:', self.car_number, 'current location:', self.get_car_location())
+            print('$ Car number:', self.car_number, 'odometer as of', datetime.now(), ':', self.get_odometer(), 'meters')
             next_event = self.get_next_event()
             self.sleep_till_next_event(next_event)
             trip = self.travel(next_event)
@@ -92,41 +100,42 @@ class CarSim:
         return self.traveled_distance
 
     def save_in_db(self, raw_data):
-        print('$ Car number:', self.car_number, 'saving trip in mongo')
-        r = db.raw_sim_data.insert_one(raw_data)
-        if not r.acknowledged:
-            raise Exception('Error in MongoDB at car ' + str(self.car_number))
+        save_to_mongo(self.car_number, raw_data)
 
     def get_next_event(self):
         print('$ Car number:', self.car_number, 'getting next event')
         today = datetime.now()
         day_of_week = today.weekday()
         current_hour = today.hour
+        current_location = self.get_car_location()
 
-        if day_of_week > 4:                                 # weekend
-            print('$ Car number:', self.car_number, ' * currently weekend')
+        if current_location == 'home':
+            if day_of_week == 4 and self.work_end <= current_hour:  # friday night
+                print('$ Car number:', self.car_number, ' * currently friday night')
+                event_time = datetime(today.year, today.month, today.day, random.randint(current_hour + 1, 24), 0)
+                event_location = self.weekend_coord
+            else:
+                print('$ Car number:', self.car_number, ' * currently at home')
+                if current_hour >= self.work_end:
+                    print('$ Car number:', self.car_number, 'going to sleep')
+                    today += timedelta(hours=(25 - current_hour))
+
+                event_time = datetime(today.year, today.month, today.day, self.work_start, 0)
+                event_location = self.work_coord
+        elif current_location == 'work':
+            print('$ Car number:', self.car_number, ' * currently at work')
+            event_time = datetime(today.year, today.month, today.day, self.work_end, 0)
+            event_location = self.home_coord
+        elif current_location == 'weekend':
+            print('$ Car number:', self.car_number, ' * currently at weekend')
             day_diff = 6 - day_of_week
             event_time = today + timedelta(days=day_diff)
             event_time = datetime(event_time.year, event_time.month, event_time.day, random.randint(12, 24), 0)     # get a random hour between 12 and 24 in the next sunday, which is going to be the trip back start time
             event_location = self.home_coord
-        elif self.work_start < current_hour < self.work_end:  # afternoon
-            print('$ Car number:', self.car_number, ' * currently afternoon')
-            event_time = datetime(today.year, today.month, today.day, self.work_end, 0)
-            event_location = self.home_coord
-        elif day_of_week == 4 and self.work_end <= current_hour:  # friday night
-            print('$ Car number:', self.car_number, ' * currently friday night')
-            event_time = datetime(today.year, today.month, today.day, random.randint(current_hour, 24), 0)
-            event_location = self.weekend_coord
-        else:                                       # week night or morning
-            print('$ Car number:', self.car_number, ' * currently week night or morning')
-            if current_hour >= self.work_end:
-                today += timedelta(hours=(25 - current_hour))
-
-            event_time = datetime(today.year, today.month, today.day, self.work_start, 0)
-            event_location = self.work_coord
+        else:       # unknown location (shouldnt happen)
+            raise Exception('Unknown car location ' + str(self.car_number))
 
         print('$ Car number:', self.car_number, ' * current time:', datetime.now())
-
         print('$ Car number:', self.car_number, ' * getting time variation')
         time_var = -timedelta(days=10)              # just to guarantee
         while event_time + time_var <= datetime.now():
