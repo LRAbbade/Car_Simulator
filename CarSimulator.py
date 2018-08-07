@@ -138,8 +138,13 @@ class CarSim:
         print('$ Car number:', self.car_number, ' * current time:', datetime.now())
         print('$ Car number:', self.car_number, ' * getting time variation')
         time_var = -timedelta(days=10)              # just to guarantee
+        tries = 0
         while event_time + time_var <= datetime.now():
+            print('$ Car number:', self.car_number, ', possible event time:', event_time + time_var)
             time_var = timedelta(minutes=randn()*10)        # create a normally distributed time variance to make times seem more natural
+            tries += 1
+            if tries > 1000:
+                raise Exception('Couldnt get variation in car ' + str(self.car_number))
 
         event = {
             'location' : event_location,
@@ -156,7 +161,7 @@ class CarSim:
 
     def sleep_till_next_event(self, next_event):
         time_to_sleep = int((next_event['time'] - datetime.now()).total_seconds())
-        print('$ Car number:', self.car_number, 'sleeping', time_to_sleep, 'seconds until next event')
+        print('$ Car number:', self.car_number, 'sleeping', time_to_sleep, 'seconds until next event\n')
         time.sleep(time_to_sleep)
 
     def sleep_till_end_of_trip(self, duration):
