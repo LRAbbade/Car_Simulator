@@ -140,7 +140,7 @@ class CarSim:
         time_var = -timedelta(days=10)              # just to guarantee
         tries = 0
         while event_time + time_var <= datetime.now():
-            print('$ Car number:', self.car_number, ', possible event time:', event_time + time_var)
+            print('$ Car number:', self.car_number, ' * possible event time:', event_time + time_var)
             time_var = timedelta(minutes=randn()*10)        # create a normally distributed time variance to make times seem more natural
             tries += 1
             if tries > 1000:

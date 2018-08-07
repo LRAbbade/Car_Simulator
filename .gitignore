@@ -1,5 +1,6 @@
 maps_api_key.py
 db_connector.py
+*.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
