@@ -17,7 +17,7 @@ db = mongo_client.carChain
 
 def save_to_mongo(car_number, document):
     print('$ Car number:', car_number, 'saving trip in mongo')
-    r = db.raw_sim_data.insert_one(raw_data)
+    r = db.raw_sim_data.insert_one(document)
     if not r.acknowledged:
         raise Exception('Error in MongoDB at car ' + str(car_number))
 
