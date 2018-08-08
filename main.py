@@ -37,9 +37,6 @@ cars = [
            car_number=5)
 ]
 
-for car in cars:
-    car.location = car.work_coord        # not necessary
-
 def run(obj):
     obj.run()
 
