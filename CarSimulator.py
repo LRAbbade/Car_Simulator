@@ -19,7 +19,7 @@ def save_to_mongo(car_number, document):
     print('$ Car number:', car_number, 'saving trip in mongo')
     r = db.raw_sim_data.insert_one(document)
     if not r.acknowledged:
-        raise Exception('Error in MongoDB at car ' + str(car_number))
+        raise Exception('Error in MongoDB at car ' + car_number)
 
 def get_travel_information(origin, destination):
     directions_result = gmaps.directions(origin, destination, mode="driving", departure_time=datetime.now())
@@ -47,32 +47,40 @@ class CarSim:
         self.work_end = work_end
         self.weekend_coord = weekend_coord
         self.traveled_distance = traveled_distance
-        self.car_number = car_number
+        self.car_number = str(car_number)
         self.last_updated = datetime.now()
         self.id = uuid1()
         self.location = home_coord
         print('Car', self.car_number, 'started:')
-        self.__repr__()
+        print(self)
 
     def run(self):
-        while True:
-            print('$ Car number:', self.car_number, 'current location:', self.get_car_location())
-            print('$ Car number:', self.car_number, 'odometer as of', datetime.now(), ':', self.get_odometer(), 'meters')
-            next_event = self.get_next_event()
-            self.sleep_till_next_event(next_event)
-            trip = self.travel(next_event)
+        try:
+            while True:
+                print('$ Car number:', self.car_number, 'current location:', self.get_car_location())
+                print('$ Car number:', self.car_number, 'odometer as of', datetime.now(), ':', self.get_odometer(), 'meters')
+                next_event = self.get_next_event()
+                self.sleep_till_next_event(next_event)
+                trip = self.travel(next_event)
 
-            geo_json_trip = [{'location':i['location'].get_geo_json(),
-                              'time':i['time']} for i in trip]
+                geo_json_trip = [{'location':i['location'].get_geo_json(),
+                                  'time':i['time']} for i in trip]
 
-            raw_data = {
-                'car_id' : self.id,
-                'insertion_time' : datetime.now(),
-                'trip' : geo_json_trip
-            }
+                raw_data = {
+                    'car_id' : self.id,
+                    'car_plate' : self.car_number,
+                    'insertion_time' : datetime.now(),
+                    'trip' : geo_json_trip
+                }
 
-            self.save_in_db(raw_data)
-            self.last_updated = datetime.now()
+                self.save_in_db(raw_data)
+                self.last_updated = datetime.now()
+        except Exception as e:
+            print('Exception in car', self.car_number)
+            print(e)
+            with open('car_' + self.car_number + '_information.txt', 'w+') as file:
+                file.write('Car stopped at ' + str(datetime.now()) + '\n')
+                file.write(repr(self))
 
     def travel(self, next_event):
         print('$ Car number:', self.car_number, 'running next trip')
@@ -133,7 +141,7 @@ class CarSim:
             event_time = datetime(event_time.year, event_time.month, event_time.day, random.randint(12, 24), 0)     # get a random hour between 12 and 24 in the next sunday, which is going to be the trip back start time
             event_location = self.home_coord
         else:       # unknown location (shouldnt happen)
-            raise Exception('Unknown car location ' + str(self.car_number))
+            raise Exception('Unknown car location ' + self.car_number)
 
         print('$ Car number:', self.car_number, ' * current time:', datetime.now())
         print('$ Car number:', self.car_number, ' * getting time variation')
@@ -144,7 +152,7 @@ class CarSim:
             print('$ Car number:', self.car_number, ' * possible event time:', event_time + time_var)
             tries += 1
             if tries > 1000:
-                raise Exception('Couldnt get variation in car ' + str(self.car_number))
+                raise Exception('Couldnt get variation in car ' + self.car_number)
 
         event = {
             'location' : event_location,
@@ -180,15 +188,15 @@ class CarSim:
     def get_car_location(self):
         r = self.check_location_definition(self.location)
         if r.startswith('coordinate unknown'):
-            raise Exception('Vehicle location unknown. Car number: ' + str(self.car_number))
+            raise Exception('Vehicle location unknown. Car number: ' + self.car_number)
 
         return r
 
     def __repr__(self):
-        print('$ Car number:', self.car_number,
-              '\nCar simulator instance:', self.id,
-              '\nHome:', self.home_coord,
-              '\nWork:', self.work_coord,
-              '\nWeekend:', self.weekend_coord,
-              '\nWork hours:', self.work_start, self.work_end,
-              '\nOdometer:', self.get_odometer(), '\n')
+        return '$ Car number: ' + self.car_number +\
+               '\nCar simulator instance: ' + str(self.id) +\
+               '\nHome: ' + str(self.home_coord) +\
+               '\nWork: ' + str(self.work_coord) +\
+               '\nWeekend: ' + str(self.weekend_coord) +\
+               '\nWork hours: ' + str(self.work_start) + ' ' + str(self.work_end) +\
+               '\nOdometer: ' + str(self.get_odometer()) + '\n'
