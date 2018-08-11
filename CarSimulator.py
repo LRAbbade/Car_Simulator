@@ -1,5 +1,6 @@
 from coordinates import Coordinate
 from numpy.random import randn
+import numpy as np
 import random
 from uuid import uuid1
 from db_connector import get_mongo_client
@@ -67,7 +68,7 @@ class CarSim:
                                   'time':i['time']} for i in trip]
 
                 raw_data = {
-                    'car_id' : self.id,
+                    'car_id' : str(self.id),
                     'car_plate' : self.car_number,
                     'insertion_time' : datetime.now(),
                     'trip' : geo_json_trip
@@ -138,7 +139,7 @@ class CarSim:
             print('$ Car number:', self.car_number, ' * currently at weekend')
             day_diff = 6 - day_of_week
             event_time = today + timedelta(days=day_diff)
-            event_time = datetime(event_time.year, event_time.month, event_time.day, random.randint(12, 24), 0)     # get a random hour between 12 and 24 in the next sunday, which is going to be the trip back start time
+            event_time = datetime(event_time.year, event_time.month, event_time.day, random.randint(12, 23), 0)     # get a random hour between 12 and 24 in the next sunday, which is going to be the trip back start time
             event_location = self.home_coord
         else:       # unknown location (shouldnt happen)
             raise Exception('Unknown car location ' + self.car_number)
@@ -147,6 +148,7 @@ class CarSim:
         print('$ Car number:', self.car_number, ' * getting time variation')
         time_var = -timedelta(days=10)              # just to guarantee
         tries = 0
+        np.random.seed()                            # guarantee unique random between instances
         while event_time + time_var <= datetime.now():
             time_var = timedelta(minutes=randn()*10)        # create a normally distributed time variance to make times seem more natural
             print('$ Car number:', self.car_number, ' * possible event time:', event_time + time_var)
