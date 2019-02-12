@@ -18,3 +18,7 @@ The `main.py` file has an example with 5 threads running parallel instances of c
 | googlemaps 	| 3.0.2	    |
 | numpy 	    | 1.13.3    |
 | pymongo 	    | 3.6.0	    |
+
+---
+
+This repository is part of the [CarChain Project](https://github.com/LRAbbade/PBFT).
